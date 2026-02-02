@@ -1,0 +1,386 @@
+OTR
+
+	NEW
+
+	S prog="OTRDlrReport",$P(EQ,"=",141)="",$P(DASH,"-",134)="",PAG=0,$P(TQ,"-",141)="",$P(TQ1,"-",90)="",$P(EQ12,"-",13)=""
+
+	// To calc grand total 
+
+	S (OVTQ30,OVTQ60,OVTQ180,OVTQGT180)=0
+
+	S (OVTC30,OVTC60,OVTC180,OVTCGT180)=0
+
+	S (OVTSQTY,OVTEXT,OVTEXTDLR,OVTROWCOUNT)=0
+
+	//
+
+	S J88=80
+
+	S PAG=0,LINE=0,SUMHDRDONE=0		;;;
+
+	D Input
+
+	;D ^LSPOOL
+
+	S L="A:\ADC\Homesource Inventory\544.txt"
+
+    O L:("NW"):3
+
+    I '$T {
+
+        W "timeout for file",!
+
+        Q
+
+    }
+
+	U 0 W /CLR,""
+
+	S rs=##class(%ResultSet).%New()
+
+	S Query="Select * from PD.BASD where Active=? Order by Dealer"
+
+	S st=rs.Prepare(Query)
+
+	S st=rs.Execute(1) ;Active Dealer's Only
+
+	while rs.Next()
+
+	{
+
+		s DLR=rs.Get("Dealer")
+
+		S PCLOC=$E(DLR_"           ",1,8)
+
+		D REX^ADCUTILS("PC",.PCLOC,.XPC,.PC,.PC2) ;Dealername ;;;
+
+		S (TSQTY,TEXT,HDRDONE)=0
+
+		S (TROWCOUNT,TEXTDLR)=0
+
+		S (Q30,Q60,Q180,QGT180)=0
+
+		S (C30,C60,C180,CGT180)=0
+
+		S HLLOC=""			;;;
+
+		S NewPageFlag=1
+
+		D FINDHL
+
+		D:TSQTY>0 TOTPRT
+
+		D:TSQTY>0 GRANDTOTALCALC
+
+	} 
+
+	D GRANDTOTAL
+
+	U L W *12 C L
+
+	U 0 W /C(0,23),"Done! Press any key... " R *X
+
+	Q
+ 
+Input
+
+	s Flag=1
+
+	While Flag{
+
+		R "Enter Report Type S/D (S = Summary / D = Detail): ",RPTTYPE,!
+
+		S RPTTYPE=$ZCONVERT(RPTTYPE,"U")								
+
+		If RPTTYPE'="S"&&(RPTTYPE'="D"){
+
+			w !,"Invalid Input Enter (S / D)",!!
+
+			continue
+
+		}
+
+		s Flag=0
+
+	}
+
+    Q
+
+FINDHL
+
+	S st=$$RNEXT^db("HL",.HLLOC,.XHL,.HL,.HL2)
+
+	I st'=1 Q
+
+	I $E(XHL(0)_"        ",1,8)'=$E(DLR_"        ",1,8) G FINDHL   ;Dealer
+
+	I HL2(5)>0 G FINDHL       ; App date exists
+
+	I HL(6)'>0 G FINDHL       ; SQty> 0
+
+	If NewPageFlag&&(RPTTYPE="D"){
+
+		d NEWPAGE
+
+		s NewPageFlag=0
+
+	}
+
+	If RPTTYPE="D" D:'HDRDONE HDR
+
+	If RPTTYPE="S",'SUMHDRDONE D HDR S SUMHDRDONE=1
+
+	D PRINT
+
+	G FINDHL
+
+PRINT
+
+    S J88=J88+1 I J88>60&&(RPTTYPE="D") D HDR
+
+    I LINE>55 D NEWPAGE						;;;
+
+	S ODATE="",AVDATE="",RSDATE="",Avail=0
+
+	S AGE30="",AGE60="",AGE180="",AGEGT=""
+
+	S MODEL=XHL(5),CAT=XHL(8),QTY=+HL(6),ROWS=0
+
+	S RETROW=$FN(##Class(RCALC2.RowCount).cmGetRowCount(QTY,CAT,MODEL,ROWS),"",2)
+
+	S TROWCOUNT=TROWCOUNT+RETROW
+ 
+	I +HL(1)>0 S dat8=HL(1) D ^DAT8 S ODATE=dat8  ;Oreder Date
+
+	I +HL2(2)>0 S dat5=+HL2(2) D ^DAT5 S AVDATE=dat8,Avail=+HL2(2) ;Ticket Date
+
+	I +HL2(1)>0 S dat5=+HL2(1) D ^DAT5 S RSDATE=dat8 ; Ship Date
+
+	S SQTY=HL(6)
+
+	S DLRCOST=HL(4)
+
+	S EXTCOST=SQTY*DLRCOST
+
+	S TEXTDLR=TEXTDLR+DLRCOST
+
+	S TSQTY=TSQTY+SQTY ; Total qty
+
+	S TEXT=TEXT+EXTCOST ;Total EXTCOST
+
+	S AGEDAYS=$H-Avail
+
+	;Buckets
+
+	I AGEDAYS<30 S Q30=Q30+SQTY,C30=C30+EXTCOST,AGE30=EXTCOST
+
+	E  I AGEDAYS<60 S Q60=Q60+SQTY,C60=C60+EXTCOST,AGE60=EXTCOST
+
+	E  I AGEDAYS<90 S Q180=Q180+SQTY,C180=C180+EXTCOST,AGE180=EXTCOST
+
+	E  S QGT180=QGT180+SQTY,CGT180=CGT180+EXTCOST,AGEGT=EXTCOST
+ 
+	S DAGE30=$S(+AGE30>0:$J(AGE30,10,2),1:"")
+
+	S DAGE60=$S(+AGE60>0:$J(AGE60,10,2),1:"")
+
+	S DAGE180=$S(+AGE180>0:$J(AGE180,10,2),1:"")
+
+	S DAGEGT=$S(+AGEGT>0:$J(AGEGT,10,2),1:"")
+
+	if RPTTYPE="D"{
+
+		U L W XHL(6),?4,XHL(5),?16,XHL(8),?20,HL(0)\1000
+
+		U L W ?27,$E(HL(5),1,6)
+
+		U L W ?32,$J(SQTY,4)
+
+		U L W ?37,$J(DLRCOST,10,2)
+
+		U L W ?47,$J(EXTCOST,10,2)
+
+		U L W ?60,RETROW
+
+		U L W ?67,ODATE,?78,AVDATE,?87,RSDATE
+
+		U L W ?95,DAGE30
+
+		U L W ?106,DAGE60
+
+		U L W ?117,DAGE180
+
+		U L W ?128,DAGEGT,!
+
+		S LINE=LINE+1
+
+	}
+
+	Q
+
+HDR  
+
+	S PAG=PAG+1     
+
+	U L W "OTRReport"
+
+	U L W ?39,"Pending Deliveries - OTR Only"
+
+	U L w ?71,"Date & Time: ",$zdt($h)
+
+	U L W ?125,"Page: ",PAG
+
+	if RPTTYPE="D"{
+
+		U L W !,"Dealer: ",DLR,"  ",XPC(1),?45," Primary Whse: ",PC2(33),!
+
+		U L W ?43,"Dlr",?54,"Ext",?60,"Row",?67,"Order",?76,"Avail",?89,"Req",!
+
+		U L W "Brd",?4,"Model",?16,"Cat",?20,"Order#",?27,"BL#",?31,"SQty",?42,"Cost",?50,"Dlr Cost",?59,"Count",?68,"Date",?77,"Date",?86,"Ship Date",?99,"1-30",?109,"31-60",?120,"61-90",?131,"Over 90",!
+
+	} elseif RPTTYPE="S" {
+
+        U L W !!,"Dealer",?8,"Dealer Name",?31,"Primary",?39,"SQTY",?47,"Dlr Cost",?65,"Ext",?72,"Row",?82,"01-30",?96,"31-60",?108,"61-90",?120,"Over 90",!
+
+        U L W ?34,"Whse",?60,"Dlr Cost",?70,"Count",!
+
+    }
+
+	U L W EQ,!
+
+	S HDRDONE=1
+
+	S LINE=6
+
+	S J88=3
+
+	Q
+
+TOTPRT
+
+    I LINE>45 D NEWPAGE
+
+    if RPTTYPE="D" {
+
+        U L W TQ,!
+
+        U L W ?32,$J(TSQTY,5)
+
+        U L W ?38,$J(TEXTDLR,10,2)
+
+        U L W ?49,$J(TEXT,10,2)
+
+        U L W ?62,TROWCOUNT
+
+        U L W ?97,$J(C30,10,2)
+
+        U L W ?108,$J(C60,10,2)
+
+        U L W ?119,$J(C180,10,2)
+
+        U L W ?130,$J(CGT180,10,2),!
+
+        S LINE=LINE+8
+
+    } elseif RPTTYPE="S" {
+
+        U L W DLR
+
+        U L W ?8,$E(XPC(1),1,25),!
+
+        U L W ?36,$J(PC2(33),2)
+
+        U L W ?38,$J(SQTY,4)
+
+        U L W ?18,$J(TEXTDLR,13,2)
+
+        U L W ?32,$J(TEXT,13,2)
+
+		U L W ?56,$J(TROWCOUNT,7,2)
+
+        U L W ?63,$J(C30,13,2)
+
+        U L W ?80,$J(C60,13,2)
+
+        U L W ?95,$J(C180,13,2)
+
+        U L W ?114,$J(CGT180,13,2),!
+
+        S LINE=LINE+4
+
+    }
+
+    U L W TQ,!
+
+    //If RPTTYPE="D" S LINE=LINE+8
+
+    //If RPTTYPE="S" S LINE=LINE+1
+
+    Q
+
+GRANDTOTAL
+
+    U L W *12
+
+	S PAG=PAG+1     
+
+	U L W "OTRReport",?39,"Pending Deliveries - OTR Only",?71,"Date & Time: ",$zdt($h),?128,"Page: ",PAG,!
+
+	U L W ?53,"GRAND TOTAL OF OVERALL REPORT",!!
+
+	U L W ?9,"SQTY",?20,"Dlr Cost",?32,"Ext Dlr Cost",?51,"Row count",?71,"01-30",?87,"31-60",?103,"61-90",?114,"Over 90",!
+
+	U L W EQ,!
+
+	U L W $J(OVTSQTY,13,2),?15,$J(OVTEXTDLR,13,2),?31,$J(OVTEXT,13,2),?47,$J(OVTROWCOUNT,13,2),?63,$J(OVTC30,13,2),?79,$J(OVTC60,13,2),?95,$J(OVTC180,13,2),?101,$J(OVTCGT180,13,2)
+
+    U L W !,TQ,!!
+
+    Q
+
+GRANDTOTALCALC
+
+	// Total units
+
+	S OVTQ30=OVTQ30+Q30
+
+	S OVTQ60=OVTQ60+Q60
+
+	S OVTQ180=OVTQ180+Q180
+
+	S OVTQGT180=OVTQGT180+QGT180
+ 
+	// Total cost for aging
+
+	S OVTC30=OVTC30+C30
+
+	S OVTC60=OVTC60+C60
+
+	S OVTC180=OVTC180+C180
+
+	S OVTCGT180=OVTCGT180+CGT180
+
+	// Total SQTY,Dealercost,ExtDealercodt,Rowcount
+
+	S OVTSQTY=OVTSQTY+TSQTY
+
+	S OVTEXT=OVTEXT+TEXT
+
+	S OVTEXTDLR=OVTEXTDLR+TEXTDLR
+
+	S OVTROWCOUNT=OVTROWCOUNT+TROWCOUNT
+
+	Q
+
+ 
+ 
+NEWPAGE
+
+	U L W *12
+
+	S (HDRDONE,LINE)=0
+
+	D HDR
+
+	Q
+ 
