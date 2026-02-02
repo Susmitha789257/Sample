@@ -22,7 +22,7 @@ OTR
 
 	;D ^LSPOOL
 
-	S L="A:\ADC\Homesource Inventory\544.txt"
+	S L="D:\Sample\5444.txt"
 
     O L:("NW"):3
 
@@ -226,17 +226,17 @@ HDR
 
 	U L W ?39,"Pending Deliveries - OTR Only"
 
-	U L w ?71,"Date & Time: ",$zdt($h)
+	U L w ?84,$zdt($h)
 
 	U L W ?125,"Page: ",PAG
 
 	if RPTTYPE="D"{
 
-		U L W !,"Dealer: ",DLR,"  ",XPC(1),?45," Primary Whse: ",PC2(33),!
+		U L W !,"Dealer: ",DLR,"  ",XPC(1),?50," Whse: ",PC2(33),!
 
-		U L W ?43,"Dlr",?54,"Ext",?60,"Row",?67,"Order",?76,"Avail",?89,"Req",!
+		U L W ?43,"Dlr",?54,"Ext",?60,"Row",?68,"Order",?79,"Avail",?89,"Req",!
 
-		U L W "Brd",?4,"Model",?16,"Cat",?20,"Order#",?27,"BL#",?31,"SQty",?42,"Cost",?50,"Dlr Cost",?59,"Count",?68,"Date",?77,"Date",?86,"Ship Date",?99,"1-30",?109,"31-60",?120,"61-90",?131,"Over 90",!
+		U L W "Brd",?4,"Model",?16,"Cat",?20,"Order#",?27,"BL#",?35,"SQty",?42,"Cost",?49,"Dlr Cost",?59,"Count",?68,"Date",?79,"Date",?86,"Ship Date",?99,"1-30",?109,"31-60",?120,"61-90",?131,"Over 90",!
 
 	} elseif RPTTYPE="S" {
 
@@ -324,7 +324,7 @@ GRANDTOTAL
 
 	S PAG=PAG+1     
 
-	U L W "OTRReport",?39,"Pending Deliveries - OTR Only",?71,"Date & Time: ",$zdt($h),?128,"Page: ",PAG,!
+	U L W "OTRReport",?39,"Pending Deliveries - OTR Only",?84,$zdt($h),?128,"Page: ",PAG,!
 
 	U L W ?53,"GRAND TOTAL OF OVERALL REPORT",!!
 
@@ -375,12 +375,8 @@ GRANDTOTALCALC
  
  
 NEWPAGE
-
 	U L W *12
-
 	S (HDRDONE,LINE)=0
-
 	D HDR
-
 	Q
  
